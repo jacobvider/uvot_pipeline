@@ -31,6 +31,17 @@ swift-uvot-pipeline/
 
 🚧 This project is under active development.
 
+
+## About
+
+This repository is a complete rewrite of the Swift UVOT transient detection pipeline with a focus on:
+
+- Clean, modular Python code
+- Reproducibility
+- Automated testing
+- Comprehensive documentation
+- Maintainability
+
 ## Author
 
 Jacob Vider
