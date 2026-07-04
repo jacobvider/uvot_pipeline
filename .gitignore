@@ -1,0 +1,31 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Distribution / packaging
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Log files
+*.log
