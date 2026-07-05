@@ -1,14 +1,13 @@
-from uvot_pipeline.io.fits import load_observation
+from pathlib import Path
+from uvot_pipeline.processing import process
+
 
 
 def main():
-    print("Swift UVOT Pipeline")
+    observation_path = Path("data/raw/sw00030375053uuu_sk.img.gz")
+    process(observation_path)
 
-    hdul = load_observation(
-        r"C:\Users\jacobvider\research\uvot_pipeline\data\raw\sw00030375053uuu_sk.img.gz"
-    )
 
-    hdul.info()
 
 
 if __name__ == "__main__":
