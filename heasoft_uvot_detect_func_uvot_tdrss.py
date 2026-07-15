@@ -137,20 +137,21 @@ def transient_detect(obsName, obsInd, refName, refQuery, refQueryPeriod, plot, t
         
         if len(table) > 0:
             print("COLUMNS:", table.colnames)
-            # obsNumList = table['OBSID']
+            obsNumList = table['OBSID']
             # Exposure = table['exposure']
             # Asp = table['asp_corr'] # aspect correction
             # filt_band =  table['filter']
             # refExtName = table['extname']
-            obsNumList = table['obsid']
-            Exposure = table['exposure']
-            Asp = table['asp_corr']
-            filt_band = table['filter']
-            refExtName = table['extname']
-            
-            tabRow = np.where(obsNumList == obsImg_obsID);
-          
-            tstartRef = table['start_time']
+            obsNumList = table['OBSID']
+            Exposure = table['EXPOSURE']
+            Asp = table['ASP_CORR']
+            filt_band = table['FILTER']
+            refExtName = table['EXTNAME']
+
+            tabRow = np.where(obsNumList == obsImg_obsID)
+
+            tstartRef = table['START_TIME']
+
 
             # tstartRef = table['start_time']
             tstartObs = MJDREFI + MJDREFF + (tstart/86400)
@@ -166,7 +167,7 @@ def transient_detect(obsName, obsInd, refName, refQuery, refQueryPeriod, plot, t
                 tableInd = tableRows -1;
                 
                 # beginTimemjd = table[tableInd]['start_time']
-                beginTimemjd = table[tableInd]['start_time']
+                beginTimemjd = table[tableInd]['START_TIME']
 
                 
                 c = True; ## default true, if it goes in the while loop- it is true
@@ -203,7 +204,7 @@ def transient_detect(obsName, obsInd, refName, refQuery, refQueryPeriod, plot, t
                 dayRef = beginTime.day;
               
                
-                obsNum =  table[tableInd]['obsid']
+                obsNum =  table[tableInd]['OBSID']
                 #print('table len:' , len(table))
                 print('table Ind:', tableInd)
             ## difference in time start and ref image > 1 or 2 week converterd seconds 
@@ -487,9 +488,51 @@ def transient_detect(obsName, obsInd, refName, refQuery, refQueryPeriod, plot, t
         os.remove(FilePath + str(obsImg_obsID) + "_" + str(obsInd) + "_uvotDetect.fits")  ##remove pre-existing file
     if (os.path.isfile(FilePath + str(obsImg_obsID) + "_" + str(obsInd) + "_uvotDetect_reg.reg")):
         os.remove(FilePath + str(obsImg_obsID) + "_" + str(obsInd) + "_uvotDetect_reg.reg")    
-    uvotdetect= hsp.HSPTask('uvotdetect')
-    uvotDetectOut = uvotdetect (infile= uvotDetectFile, outfile= FilePath + str(obsImg_obsID)+ "_" + str(obsInd) +'_uvotDetect.fits',regfile = FilePath  + str(obsImg_obsID) + '_uvotDetect_reg.reg', sexargs= '-BACK_TYPE AUTO -BACK_SIZE 32,32', expfile='NONE', zerobkg=2, plotsrc = 'no', threshold=thresh, chatter = 5, noprompt='True')
-    print('\r\n')
+    # uvotdetect= hsp.HSPTask('uvotdetect')
+    # uvotDetectOut = uvotdetect (infile= uvotDetectFile, outfile= FilePath + str(obsImg_obsID)+ "_" + str(obsInd) +'_uvotDetect.fits',regfile = FilePath  + str(obsImg_obsID) + '_uvotDetect_reg.reg', sexargs= '-BACK_TYPE AUTO -BACK_SIZE 32,32', expfile='NONE', zerobkg=2, plotsrc = 'no', threshold=thresh, chatter = 5, noprompt='True')
+    # print('\r\n')
+    uvotdetect = hsp.HSPTask("uvotdetect")
+
+    uvotDetectOut = uvotdetect(
+        infile=uvotDetectFile,
+        outfile=FilePath + str(obsImg_obsID) + "_" + str(obsInd) + "_uvotDetect.fits",
+        regfile=FilePath + str(obsImg_obsID) + "_uvotDetect_reg.reg",
+        sexargs="-BACK_TYPE AUTO -BACK_SIZE 32,32",
+        expfile="NONE",
+        zerobkg=2,
+        plotsrc="no",
+        threshold=thresh,
+        chatter=5,
+        noprompt="True",
+    )
+
+    print("\n===== uvotdetect output =====")
+    print(uvotDetectOut)
+    print("=============================\n")
+    print("uvotdetect returncode:", uvotDetectOut.returncode)
+    print("stdout:")
+    print(uvotDetectOut.stdout)
+    print("stderr:")
+    print(uvotDetectOut.stderr)
+
+    import os
+
+    print("="*60)
+    print("uvotdetect returncode:", uvotDetectOut.returncode)
+    print("="*60)
+
+    print("STDOUT:")
+    print(uvotDetectOut.stdout)
+
+    print("="*60)
+    print("STDERR:")
+    print(uvotDetectOut.stderr)
+
+    outfile = FilePath + str(obsImg_obsID) + "_" + str(obsInd) + "_uvotDetect.fits"
+    print("="*60)
+    print("Expected output:", outfile)
+    print("Exists?", os.path.exists(outfile))
+    print("="*60)
 
 
     return refImg, indRef, obsImg_obsID, refImg_obsID, Input_Info_List, Ref_Info_List
