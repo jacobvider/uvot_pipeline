@@ -74,20 +74,20 @@ def filter_reference_candidates(table, metadata):
     for row in table:
 
         print(
-            f"OBSID={row['OBSID']} "
-            f"FILTER={repr(row['FILTER'])} "
-            f"EXPOSURE={row['EXPOSURE']}"
+            f"obsid={row['obsid']} "
+            f"filter={repr(row['filter'])} "
+            f"exposure={row['exposure']}"
         )
 
-        if row["OBSID"] == metadata["obs_id"]:
+        if row["obsid"] == metadata["obs_id"]:
             print(" -> rejected: same OBSID")
             continue
 
-        if str(row["FILTER"]).strip() != str(metadata["filter"]).strip():
+        if str(row["filter"]).strip() != str(metadata["filter"]).strip():
             print(" -> rejected: filter mismatch")
             continue
 
-        if row["EXPOSURE"] <= 60:
+        if row["exposure"] <= 60:
             print(" -> rejected: exposure <= 60")
             continue
 
@@ -101,7 +101,7 @@ def select_best_reference(table):
     Select the longest exp
     """
     
-    return max(table, key=lambda row: row["EXPOSURE"])
+    return max(table, key=lambda row: row["exposure"])
 
 
 
@@ -122,10 +122,10 @@ def download_reference_image(observation):
     print("DEBUG download ref")
 
     # Observation ID
-    obsid = str(observation["OBSID"]).zfill(11)
+    obsid = str(observation["obsid"]).zfill(11)
 
     # Observation start time (Modified Julian Date)
-    start_time = observation["START_TIME"]
+    start_time = observation["start_time"]
 
     # Convert MJD to calendar date
     t = Time(start_time, format="mjd")

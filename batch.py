@@ -49,7 +49,12 @@ DATA_DIR = Path(
 )
 
 # Only process U-band images
-observations = sorted(DATA_DIR.glob("sw*uuu_sk.img.gz"))
+# observations = sorted(DATA_DIR.glob("sw*uuu_sk.img.gz"))
+observations = DATA_DIR.glob("sw*uuu_sk.img.gz")
+
+####taking them in order they appear in the list
+###processes observations in order in which they were taken
+###look at most promising fields first, least promising fields later, work our way out
 
 print(f"Found {len(observations)} observations.")
 

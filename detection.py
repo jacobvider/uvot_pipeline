@@ -103,9 +103,34 @@ def detect_sources(
     # Print the full HEASoft execution result
     print(result)
 
-    # If uvotdetect failed, stop the pipeline and report the error
     if result.returncode != 0:
-        raise RuntimeError(result.stderr)
+        print(f"WARNING: uvotdetect failed (return code {result.returncode})")
+        print(result.stdout)
+        return None, None
+
+    if not output_fits.exists():
+        print(f"WARNING: {output_fits} was not created.")
+        return None, None
+
+    if not output_region.exists():
+        print(f"WARNING: {output_region} was not created.")
+        return None, None
+
+    # Occasionally uvotdetect exits without creating its outputs.
+    # Check that the expected files actually exist.
+    if not output_fits.exists():
+        print(
+            f"WARNING: uvotdetect did not create {output_fits}. "
+            "Skipping this observation."
+        )
+        return None, None
+
+    if not output_region.exists():
+        print(
+            f"WARNING: uvotdetect did not create {output_region}. "
+            "Skipping this observation."
+        )
+        return None, None
 
     # Inform the user that source detection finished successfully
     print("Detection complete.")

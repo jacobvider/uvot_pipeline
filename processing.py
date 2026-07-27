@@ -1,5 +1,26 @@
 """Organize the pipeline."""
 
+
+
+"""
+This script does the following:
+
+1. opens a fits observation <- fits.py
+2. gets metadata (ra, dec, obsid, filter, etc) <- fits.py
+3. search swift archive for reference image <- archive.py
+4. download the reference image <- archive.py
+5. opens the reference fits file <- fits.py
+6. choose image extension w/ longest exptime <- fits.py
+7. find overlapping region of sky <- registration.py
+8. convert overlap into pixel boundaries <- registration.py
+9. crop both images <- registration.py
+10. subtraction.py
+
+
+
+
+
+"""
 from pathlib import Path
 
 # Search the Swift archive for ref image.
@@ -142,11 +163,18 @@ def process(observation_path):
     # Run uvotdetect on the difference image (uvotDetect.fits, uvotDetect.reg) containing every detected source.
     print("Running uvotdetect...")
 
-    detect_sources(
+    catalog, region = detect_sources(
         difference_image,
         metadata["obs_id"],
         obs_extension,
     )
+
+    if catalog is None:
+        print(
+            f"Skipping ObsID {metadata['obs_id']} because "
+            "uvotdetect did not produce an output catalog."
+        )
+        return []
     print("Finished uvotdetect.")
 
     print("Running validation...")
