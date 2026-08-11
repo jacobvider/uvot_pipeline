@@ -36,3 +36,12 @@ __pycache__/
 
 venv/
 .venv/
+# Generated Python files
+*.pyc
+__pycache__/
+
+# Temporary files
+*.tmp
+
+# Logs
+*.log
