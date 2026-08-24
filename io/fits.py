@@ -4,6 +4,7 @@ from astropy.coordinates import SkyCoord
 import astropy.units as u
 from astropy.io import fits
 
+print("In fits.py: define function load_observation")
 def load_observation(path):
     """Load a Swift UVOT observation.
        Parameters
