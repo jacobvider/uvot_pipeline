@@ -23,15 +23,18 @@ This script does the following:
 """
 from pathlib import Path
 
+print("In processing.py: import archive.py")
 # Search the Swift archive for ref image.
-from uvot_pipeline.io.archive import (
+from uvot_io.archive import (
     find_reference_image,
 
     # Download ref image from HEASARC.
     download_reference_image,
 )
 
-from uvot_pipeline.io.fits import (
+print("In processing.py: import fits.py functions, load_observation, get_observation_metadata, and select_longest_extension")
+
+from uvot_io.fits import (
 
     # Open a FITS observation.
     load_observation,
@@ -43,7 +46,7 @@ from uvot_pipeline.io.fits import (
     select_longest_extension,
 )
 
-from uvot_pipeline.registration import (
+from registration import (
 
     # finds overlapping sky region
     # shared by the observation and reference.
@@ -57,7 +60,7 @@ from uvot_pipeline.registration import (
 )
 
 
-from uvot_pipeline.subtraction import subtract_images
+from subtraction import subtract_images
 
 # subtract_images()
 # Creates temporary FITS files (ObsCrop.fits, RefCrop.fits)
@@ -65,26 +68,20 @@ from uvot_pipeline.subtraction import subtract_images
 # returns imsum_crop.fits (difference image)
 
 
-from uvot_pipeline.detection import detect_sources
+from detection import detect_sources
 
 # Runs HEASoft uvotdetect on the difference image
 # to locate candidate transient sources.
 
 
-from uvot_pipeline.validation import validate_transients
+from validation import validate_transients
 
 # Wrapper around the original (checkValidTransients_uvot_tdrss.py)
 
 # applies the eight transient-selection criteria
 # to remove artifacts and false detections.
 
-
-def process(observation_path):
-    """
-    Process a single Swift UVOT observation.
-    """
-
-
+def download_imagefile():
     obs_hdul = load_observation(observation_path)
 
     # reads metadata from the observation (RA, Dec, ObsID, Filter, Exposure time)
@@ -95,10 +92,26 @@ def process(observation_path):
     # Filters candidates by same filter, different ObsID, exposure > 60 s
 
     # Returns the longest exposure image.
+    print("In processing.py: run find_reference_image")
     best = find_reference_image(metadata)
+    print(best)
+    print("In processing.py: Returned from find_reference_image()")
+
+    print("Selected reference:")
+    print(best["OBSID"])
+    print(best["FILTER"])
+    print(best["START_TIME"])
 
     # Download the selected archival reference image.
     reference_path = download_reference_image(best)
+    return reference_path
+
+print("In processing.py: import process")
+def process(observation_path):
+    """
+    Process a single Swift UVOT observation.
+    """
+    reference_path = download_imagefile(observation_path)
 
     # Open the reference FITS file.
     ref_hdul = load_observation(reference_path)
