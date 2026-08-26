@@ -29,7 +29,7 @@ swift-uvot-pipeline/
 
 ## Status
 
-🚧 This project is under active development.
+This project is under active development.
 
 
 ## About
