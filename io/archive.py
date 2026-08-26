@@ -10,6 +10,15 @@ REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create a single HEASARC client
 heasarc = Heasarc()
+FILTER_MAP = {
+    "U": "uuu",
+    "UVW1": "uw1",
+    "UVM2": "um2",
+    "UVW2": "uw2",
+    "B": "ubb",
+    "V": "uvv",
+    "WHITE": "uwh",
+}
 
 def query_archive(coords, mission="swiftuvlog", radius="6 arcmin"):
     """
@@ -45,8 +54,8 @@ def filter_reference_candidates(table, metadata):
 
     candidates = []
 
-    print("Target obsid:", metadata["obs_id"])
-    print("Target filter:", metadata["filter"])
+    print("In archive.py: Target obsid:", metadata["obs_id"])
+    print("In archive.py: Target filter:", metadata["filter"])
     for row in table[:10]:
         print(
             row["OBSID"],
@@ -54,7 +63,7 @@ def filter_reference_candidates(table, metadata):
             row["EXPOSURE"],
         )
 
-    print("Available filters:")
+    print("In archive.py: Available filters:")
     print(set(table["FILTER"]))
 
     for row in table:
@@ -77,76 +86,9 @@ def select_best_reference(table):
     """
     Select the longest exp
     """
-    
     return max(table, key=lambda row: row["EXPOSURE"])
 
-
-def download_reference_image(observation, metadata):
-    print(">>> download_reference_image() called")
-    breakpoint()
-    """
-    Download the selected Swift UVOT reference image.
-
-    Parameters
-    ----------
-    observation : astropy.table.Row
-        Selected reference observation.
-    metadata : dict
-        Metadata for the target observation.
-
-    Returns
-    -------
-    pathlib.Path
-        Path to the downloaded image.
-    """
-    print("In archive.py: download_reference_image")
-
-    obsid = str(observation["OBSID"]).zfill(11)
-
-    # Observation date
-    t = Time(observation["START_TIME"], format="mjd")
-    date = t.to_datetime()
-    year_month = f"{date.year}_{date.month:02d}"
-
-    # Convert HEASARC filter name to filename code
-    filter_map = {
-        "U": "uuu",
-        "UVW1": "uw1",
-        "UVM2": "um2",
-        "UVW2": "uw2",
-        "B": "ubb",
-        "V": "uvv",
-        "WHITE": "uwh",
-    }
-
-    filter_name = observation["FILTER"].strip().upper()
-
-    if filter_name not in filter_map:
-        raise ValueError(f"Unsupported filter: {filter_name}")
-
-    filter_code = filter_map[filter_name]
-
-    # filename = f"sw{obsid}{filter_code}_sk.img.gz"
-    filename = f"sw{obsid}uw1_sk.img.gz"
-    print(filename)
-
-
-    url = (
-        "https://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/"
-        f"{year_month}/{obsid}/uvot/image/{filename}"
-    )
-
-    output_file = REFERENCE_DIR / filename
-
-    if not output_file.exists():
-        print(f"Downloading {filename}")
-        print(f"URL: {url}")
-        urlretrieve(url, output_file)
-
-    return output_file
-
 print("In archive.py: find_reference_image")
-
 def find_reference_image(metadata):
     """
     Find the archival reference image w/ longest exptime
@@ -155,28 +97,206 @@ def find_reference_image(metadata):
     table = query_archive(metadata["skycoord"])
 
     # Debug: inspect the returned table
-    print("Columns:")
+    print("In archive.py, in find_reference_image: print reference image")
+    print("In archive.py: Columns:")
     print(table.colnames)
     print()
 
-    print("First few rows:")
+    print("In archive.py: First few rows:")
     print(table[:5])
     print()
 
-    print("Filters out not relevent observations.")
+    print("In archive.py, in find_reference_image: filters out not relevent observations.")
 
     filtered = filter_reference_candidates(table, metadata)
-    print(f'There are {len(filtered)} swift uvot observations near the sky position of {metadata["skycoord"]} that passed the current filters.')
+    print(f'In archive.py, in find_reference_image: There are {len(filtered)} swift uvot observations near the sky position of {metadata["skycoord"]} that passed the current filters.')
+    print('In archive.py, in find_reference_image: [filtered] data')
+    print(f'In archive.py {filtered}')
 
     best = select_best_reference(filtered)
+
     print(best["FILTER"])
 
-    print("The archival image with the longest exposure time...")
+    print("In archive.py, in find_reference_image: The archival image with the longest exposure time...")
     print(best)
+    return best
 
-    return download_reference_image(best, metadata)
-
+    # return download_reference_image(best, metadata)
     # return download_reference_image(best)
+
+def image_filename(obsid, filter_name):
+    """
+    Return the standard Swift UVOT image filename.
+    """
+
+    filter_name = filter_name.strip().upper()
+
+    if filter_name not in FILTER_MAP:
+        raise ValueError(f"Unsupported filter: {filter_name}")
+
+    obsid = str(obsid).zfill(11)
+    filter_code = FILTER_MAP[filter_name]
+
+    return f"sw{obsid}{filter_code}_sk.img.gz"
+
+def get_obs_path(obsid, filter_name, directory):
+    """
+    Return the local path to an observation.
+    Download it first if it is not already present.
+    """
+
+    observation_path = directory / image_filename(obsid, filter_name)
+
+    if not observation_path.exists():
+        observation_path = download_image(
+            obsid,
+            filter_name,
+            directory,
+        )
+
+    return observation_path
+
+def download_image(obsid, filter_name, directory=REFERENCE_DIR):
+    """
+    Download a Swift UVOT image given its ObsID and filter.
+
+    Parameters
+    ----------
+    obsid : str
+        Swift observation ID.
+    filter_name : str
+        UVOT filter name (e.g. "U", "UVW1").
+    directory : pathlib.Path
+        Directory where the image should be saved.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the downloaded image.
+    """
+
+
+    normalized_obsid = str(obsid).zfill(11)
+    table = heasarc.query_region(
+        position="0 0",
+        mission="swiftuvlog",
+        radius="361 deg",
+        obsid=normalized_obsid,
+        fields="All",
+        resultmax=1,
+    )
+
+    if len(table) == 0:
+        raise ValueError(f"ObsID {obsid} not found.")
+
+    start_time = table[0]["START_TIME"]
+
+    t = Time(start_time, format="mjd")
+    date = t.to_datetime()
+    year_month = f"{date.year}_{date.month:02d}"
+
+    filename = image_filename(obsid, filter_name)
+
+    obsid = normalized_obsid
+
+    url = (
+        "https://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/"
+        f"{year_month}/{obsid}/uvot/image/{filename}"
+    )
+
+    directory.mkdir(parents=True, exist_ok=True)
+    output_file = directory / filename
+
+    if not output_file.exists():
+        print(f"Downloading {filename}")
+        print(f"URL: {url}")
+        urlretrieve(url, output_file)
+
+    return output_file
+
+def download_observation(metadata):
+    """
+    Download the input observation described by metadata.
+    """
+    return download_image(
+        metadata["obs_id"],
+        metadata["filter"],
+    )
+
+
+def download_reference_image(observation):
+    """
+    Download the selected archival reference image.
+    """
+    return download_image(
+        observation["OBSID"],
+        observation["FILTER"],
+    )
+
+# def download_reference_image(observation, metadata):
+#     print(">>> download_reference_image() called")
+#     breakpoint()
+#     """
+#     Download the selected Swift UVOT reference image.
+
+#     Parameters
+#     ----------
+#     observation : astropy.table.Row
+#         Selected reference observation.
+#     metadata : dict
+#         Metadata for the target observation.
+
+#     Returns
+#     -------
+#     pathlib.Path
+#         Path to the downloaded image.
+#     """
+#     print("In archive.py: download_reference_image")
+
+#     obsid = str(observation["OBSID"]).zfill(11)
+
+#     # Observation date
+#     t = Time(observation["START_TIME"], format="mjd")
+#     date = t.to_datetime()
+#     year_month = f"{date.year}_{date.month:02d}"
+
+#     # Convert HEASARC filter name to filename code
+#     filter_map = {
+#         "U": "uuu",
+#         "UVW1": "uw1",
+#         "UVM2": "um2",
+#         "UVW2": "uw2",
+#         "B": "ubb",
+#         "V": "uvv",
+#         "WHITE": "uwh",
+#     }
+
+#     filter_name = observation["FILTER"].strip().upper()
+
+#     if filter_name not in filter_map:
+#         raise ValueError(f"Unsupported filter: {filter_name}")
+
+#     filter_code = filter_map[filter_name]
+
+#     #filename = f"sw{obsid}{filter_code}_sk.img.gz"
+#     filename = f"sw{obsid}uw1_sk.img.gz"
+#     print(filename)
+
+
+#     url = (
+#         "https://heasarc.gsfc.nasa.gov/FTP/swift/data/obs/"
+#         f"{year_month}/{obsid}/uvot/image/{filename}"
+#     )
+
+#     output_file = REFERENCE_DIR / filename
+
+#     if not output_file.exists():
+#         print(f"Downloading {filename}")
+#         print(f"URL: {url}")
+#         urlretrieve(url, output_file)
+
+#     return output_file
+
 
 def inspect_reference(observation):
     """
