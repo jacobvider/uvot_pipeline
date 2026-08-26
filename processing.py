@@ -1,24 +1,23 @@
-"""Organize the pipeline."""
-
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: Jacob Vider, jacobisaacvider@gmail.com
+Date:   Wed Aug 26 2026
+"""
 
 """
 This script does the following:
 
-1. opens a fits observation <- fits.py
-2. gets metadata (ra, dec, obsid, filter, etc) <- fits.py
-3. search swift archive for reference image <- archive.py
-4. download the reference image <- archive.py
-5. opens the reference fits file <- fits.py
-6. choose image extension w/ longest exptime <- fits.py
-7. find overlapping region of sky <- registration.py
-8. convert overlap into pixel boundaries <- registration.py
-9. crop both images <- registration.py
-10. subtraction.py
-
-
-
-
+-  opens a fits observation <- fits.py
+- gets metadata (ra, dec, obsid, filter, etc) <- fits.py
+- search swift archive for reference image <- archive.py
+- download the reference image <- archive.py
+- opens the reference fits file <- fits.py
+- choose image extension w/ longest exptime <- fits.py
+- find overlapping region of sky <- registration.py
+- convert overlap into pixel boundaries <- registration.py
+- crop both images <- registration.py
+- subtraction.py
 
 """
 from pathlib import Path
