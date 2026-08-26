@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-
+"""
+@author: Jacob Vider, jacobisaacvider@gmail.com
+Date:   Wed Aug 26 2026
+"""
 
 #sudo apt update
 #sudo apt install saods9
