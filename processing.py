@@ -27,9 +27,9 @@ print("In processing.py: import archive.py")
 # Search the Swift archive for ref image.
 from uvot_io.archive import (
     find_reference_image,
-
     # Download ref image from HEASARC.
     download_reference_image,
+    download_image,
 )
 
 print("In processing.py: import fits.py functions, load_observation, get_observation_metadata, and select_longest_extension")
@@ -73,15 +73,16 @@ from detection import detect_sources
 # Runs HEASoft uvotdetect on the difference image
 # to locate candidate transient sources.
 
-
 from validation import validate_transients
 
-# Wrapper around the original (checkValidTransients_uvot_tdrss.py)
+# Verify the candidate catalog produced by the local detection step.
 
-# applies the eight transient-selection criteria
-# to remove artifacts and false detections.
+print("In processing.py: import process")
+def process(observation_path):
+    """
+    Process a single Swift UVOT observation.
+    """
 
-def download_imagefile():
     obs_hdul = load_observation(observation_path)
 
     # reads metadata from the observation (RA, Dec, ObsID, Filter, Exposure time)
@@ -92,7 +93,7 @@ def download_imagefile():
     # Filters candidates by same filter, different ObsID, exposure > 60 s
 
     # Returns the longest exposure image.
-    print("In processing.py: run find_reference_image")
+    print("In processing.py, from archive.py: run find_reference_image")
     best = find_reference_image(metadata)
     print(best)
     print("In processing.py: Returned from find_reference_image()")
@@ -104,14 +105,6 @@ def download_imagefile():
 
     # Download the selected archival reference image.
     reference_path = download_reference_image(best)
-    return reference_path
-
-print("In processing.py: import process")
-def process(observation_path):
-    """
-    Process a single Swift UVOT observation.
-    """
-    reference_path = download_imagefile(observation_path)
 
     # Open the reference FITS file.
     ref_hdul = load_observation(reference_path)
@@ -172,14 +165,13 @@ def process(observation_path):
     )
     print("Finished subtraction.")
 
-
     # Run uvotdetect on the difference image (uvotDetect.fits, uvotDetect.reg) containing every detected source.
     print("Running uvotdetect...")
 
     catalog, region = detect_sources(
         difference_image,
-        metadata["obs_id"],
-        obs_extension,
+        output_dir="data/processed",
+        threshold=5,
     )
 
     if catalog is None:
@@ -190,15 +182,8 @@ def process(observation_path):
         return []
     print("Finished uvotdetect.")
 
-    print("Running validation...")
-    validated = validate_transients(
-        observation_path=observation_path,
-        observation_extension=obs_extension,
-        observation_id=metadata["obs_id"],
-        reference_path=reference_path,
-        reference_extension=ref_extension,
-        output_directory="data",
-    )
+    print("Validating detection catalog...")
+    validated = validate_transients(catalog)
     print("Finished validation.")
 
     print("Registration complete.")
