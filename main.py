@@ -1,30 +1,9 @@
-# from pathlib import Path
-# from uvot_pipeline.processing import process
-
-
-# def main(filename):
-
-#     #goes through 
-#     observation_path = Path(
-#         "/mnt/c/Users/jacob/research/spring_2026/"
-#         "image_subtraction_pipeline_to_process/"
-#         f"{filename}"
-#     )
-
-#     if not observation_path.exists():
-#         raise FileNotFoundError(observation_path)
-
-#     print(f"Processing {observation_path.name}")
-#     process(observation_path)
-#     print("Done.")
-
-# if __name__ == "__main__":
-#     main("sw00083650004uuu_sk.img.gz")
-
 from pathlib import Path
+import sys
 
 print("In main.py: import process")
 from processing import process
+from uvot_io.archive import get_obs_path, image_filename
 
 print("In main.py: define path")
 DATA_DIR = Path(
@@ -32,23 +11,20 @@ DATA_DIR = Path(
     "image_subtraction_pipeline_to_process"
 )
 
-def main(filename):
+
+def main(obsid, filter_name):
     """
     Process a single Swift UVOT observation.
     """
     print("In main.py: set observation_path")
 
-    observation_path = DATA_DIR / filename
-    print(observation_path)
+    observation_path = DATA_DIR / image_filename(obsid, filter_name)
 
     print("In main.py: check if observation_path exists")
 
     if not observation_path.exists():
-        print("In main.py: path does not exist")
-
-        raise FileNotFoundError(observation_path)
-    
-
+        observation_path = get_obs_path(obsid, filter_name, DATA_DIR)    
+        print(observation_path)
 
     print(f"Processing {observation_path.name}")
     print("In main.py: run process from processing.py")
@@ -61,4 +37,10 @@ def main(filename):
 
 
 if __name__ == "__main__":
-    main("sw00030009002uw1_sk.img.gz")
+    if len(sys.argv) != 3:
+        raise SystemExit("python main.py <obsid> <filter>")
+
+    obsid = int(sys.argv[1])
+    filter_name = sys.argv[2]
+    main(obsid, filter_name)
+    #example: main(30009002, "UVW1")
