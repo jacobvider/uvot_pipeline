@@ -1,0 +1,13 @@
+name: uvot
+channels:
+  - defaults
+dependencies:
+  - python=3.11
+  - photutils
+  - scipy=1.11
+  - astropy=6.1
+  - matplotlib
+  - numpy=1.26.4
+  - astroquery=0.4.7
+  - pip
+  - ipykernel
