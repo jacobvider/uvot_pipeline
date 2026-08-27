@@ -2,8 +2,8 @@
 Date:   Wed Aug 26 2026
 
 ./test_script.sh "ra dec" filename.jpg
-Useage: ./test_script.sh "ra dec" filename.jpg
-"""
+Usage: ./test_script.sh "ra dec" filename.jpg
+
 
 #sudo apt update
 #sudo apt install saods9
