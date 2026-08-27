@@ -4,22 +4,6 @@
 @author: Jacob Vider, jacobisaacvider@gmail.com
 Date:   Wed Aug 26 2026
 """
-
-"""
-This script does the following:
-
--  opens a fits observation <- fits.py
-- gets metadata (ra, dec, obsid, filter, etc) <- fits.py
-- search swift archive for reference image <- archive.py
-- download the reference image <- archive.py
-- opens the reference fits file <- fits.py
-- choose image extension w/ longest exptime <- fits.py
-- find overlapping region of sky <- registration.py
-- convert overlap into pixel boundaries <- registration.py
-- crop both images <- registration.py
-- subtraction.py
-
-"""
 from pathlib import Path
 
 print("In processing.py: import archive.py")
@@ -28,7 +12,6 @@ from uvot_io.archive import (
     find_reference_image,
     # Download ref image from HEASARC.
     download_reference_image,
-    download_image,
 )
 
 print("In processing.py: import fits.py functions, load_observation, get_observation_metadata, and select_longest_extension")
@@ -66,7 +49,6 @@ from subtraction import subtract_images
 # Runs HEASoft uvotimsum
 # returns imsum_crop.fits (difference image)
 
-
 from detection import detect_sources
 
 # Runs HEASoft uvotdetect on the difference image
@@ -77,7 +59,7 @@ from validation import validate_transients
 # Verify the candidate catalog produced by the local detection step.
 
 print("In processing.py: import process")
-def process(observation_path):
+def process(observation_path, obsid):
     """
     Process a single Swift UVOT observation.
     """
@@ -86,6 +68,11 @@ def process(observation_path):
 
     # reads metadata from the observation (RA, Dec, ObsID, Filter, Exposure time)
     metadata = get_observation_metadata(obs_hdul)
+    filter_name = str(metadata["filter"]).strip()
+    output_dir = Path("data") / "processed" / (
+        f"{obsid}_{filter_name}"
+    )
+    
 
     # Search the Swift archive for nearby observations.
     #
@@ -158,7 +145,7 @@ def process(observation_path):
         ref_crop,
         ref_header,
         ref_hdul[ref_extension].header["EXPOSURE"],
-        "data",
+        output_dir,
         metadata["obs_id"],
         obs_extension,
     )
@@ -169,7 +156,7 @@ def process(observation_path):
 
     catalog, region = detect_sources(
         difference_image,
-        output_dir="data/processed",
+        output_dir=output_dir,
         threshold=5,
     )
 
