@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+@author: Jacob Vider, jacobisaacvider@gmail.com
+Date:   Wed Aug 26 2026
+"""
+
 from pathlib import Path
 import sys
 
