@@ -4,7 +4,7 @@
 ### Usage: ./run.sh target_observed filter output_filename.jpg
 ### Example: ./run.sh 30010013 UVW1 uvot_30010013_UVW1.jpg
 
-
+set -e
 #check if conda is installed
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate uvot
@@ -16,7 +16,6 @@ command -v ds9 >/dev/null || {
 }
 
 #stops the script when a command fails
-set -e
 #user inputs the target
 TARGET="$1"
 #user can input the filter. if input is not specified, the filter will be UVW1
