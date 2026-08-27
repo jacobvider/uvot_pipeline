@@ -1,10 +1,18 @@
-# uvot_pipeline
-Python pipeline for detecting astronomical transients in Swift UVOT observations
+Contact jacobisaacvider@gmail.com with questions
 
 # Swift UVOT Transient Detection Pipeline
 
-A Python package for automatically processing Swift UVOT observations and detecting astronomical transient candidates.
+A Python package for automatically processing Swift UVOT observations and detecting astronomical transient candidates. 
 
+### GitHub Repository
+
+The GitHub repository contains the source code, documentation, and development history of the pipeline.
+
+* Browse the codebase.
+* Report bugs or request new features using **Issues**.
+* Track project tasks and development milestones through the Issues page.
+
+---
 ## Features
 
 - Download and organize Swift UVOT observations
