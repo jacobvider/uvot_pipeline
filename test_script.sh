@@ -1,9 +1,7 @@
 """
 @author: Jacob Vider, jacobisaacvider@gmail.com
 Date:   Wed Aug 26 2026
-
-./test_script.sh "ra dec" filename.jpg
-Usage: ./test_script.sh "ra dec" filename.jpg
+Usage: ./test_script.sh ra dec filename.jpg
 """
 
 #sudo apt update
