@@ -1,12 +1,13 @@
 
 ### @author: Jacob Vider, jacobisaacvider@gmail.com
 ### Date:   Wed Aug 26 2026
-### Usage: ./test_script.sh target_observed filter output_filename.jpg
-### Example: ./test_script.sh 30010013 UVW1 uvot_30010013_UVW1.jpg
+### Usage: ./run.sh target_observed filter output_filename.jpg
+### Example: ./run.sh 30010013 UVW1 uvot_30010013_UVW1.jpg
 
 
 #check if conda is installed
 source "$(conda info --base)/etc/profile.d/conda.sh"
+conda init
 conda activate uvot
 
 #check if ds9 is installed
