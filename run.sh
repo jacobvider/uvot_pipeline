@@ -7,7 +7,6 @@
 
 #check if conda is installed
 source "$(conda info --base)/etc/profile.d/conda.sh"
-conda init
 conda activate uvot
 
 #check if ds9 is installed
