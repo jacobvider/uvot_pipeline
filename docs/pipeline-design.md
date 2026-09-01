@@ -61,8 +61,11 @@ run "./test_script.sh (target id) (filter)"
 ### other notes
 processing.process: function inside of processing.py
     - fits.load_observation(observation_path)
+    
     - fits.get_observation_metadata
+    
     - archive.find_reference_image
+    
         - archive.query_archive
         - archive.filter_reference_candidates
         - archive.select_best_references (longest exp time)
