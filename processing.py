@@ -4,6 +4,7 @@
 @author: Jacob Vider, jacobisaacvider@gmail.com
 Date:   Wed Aug 26 2026
 """
+
 from pathlib import Path
 
 print("In processing.py: import archive.py")
@@ -12,6 +13,9 @@ from uvot_io.archive import (
     find_reference_image,
     # Download ref image from HEASARC.
     download_reference_image,
+    MAX_TARGETS,
+    count_targets,
+    has_acceptable_target_count,
 )
 
 print("In processing.py: import fits.py functions, load_observation, get_observation_metadata, and select_longest_extension")
@@ -72,7 +76,19 @@ def process(observation_path, obsid):
     output_dir = Path("data") / "processed" / (
         f"{obsid}_{filter_name}"
     )
-    
+
+    # If this observation has already produced too many candidates, do not
+    # select and download another reference image for it.  New observations
+    # have no catalog yet and continue through the pipeline normally.
+    catalog_path = output_dir / "uvotDetect.fits"
+    existing_target_count = count_targets(catalog_path)
+    if not has_acceptable_target_count(catalog_path):
+        print(
+            f"Skipping ObsID {metadata['obs_id']}: its existing detection "
+            f"catalog contains {existing_target_count} targets, exceeding "
+            f"the limit of {MAX_TARGETS}."
+        )
+        return []
 
     # Search the Swift archive for nearby observations.
     #
@@ -102,6 +118,8 @@ def process(observation_path, obsid):
     obs_extension = 1
     ref_extension = select_longest_extension(ref_hdul)
 
+    ##is it extension 1?
+    
     # Determine the region of sky visible in both images (wcs)
     sk_min, sk_max, obs_header, ref_header = find_overlap(
         obs_hdul,
@@ -171,6 +189,14 @@ def process(observation_path, obsid):
     print("Validating detection catalog...")
     validated = validate_transients(catalog)
     print("Finished validation.")
+
+    target_count = count_targets(validated)
+    if not has_acceptable_target_count(validated):
+        print(
+            f"Skipping ObsID {metadata['obs_id']}: detected {target_count} "
+            f"targets, exceeding the limit of {MAX_TARGETS}."
+        )
+        return []
 
     print("Registration complete.")
 
