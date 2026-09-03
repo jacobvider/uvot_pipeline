@@ -1,69 +1,67 @@
-"""Read fits files and extract metadata"""
+"""Read UVOT FITS files and select their image extensions."""
+
+from pathlib import Path
 
 from astropy.coordinates import SkyCoord
-import astropy.units as u
 from astropy.io import fits
+import astropy.units as u
 
-print("In fits.py: define function load_observation")
-def load_observation(path):
-    """Load a Swift UVOT observation.
-       Parameters
-    ----------
-    path : Path
-        Path to a UVOT FITS image.
 
-    Returns
-    -------
-    Observation
-        A loaded observation.
-    """
-    return fits.open(path)
-    
-def save_observation(path):
-    pass
+def load_observation(path: str | Path) -> fits.HDUList:
+    """Open a Swift UVOT FITS image without memory-mapping the input."""
 
-def get_observation_metadata(hdul, extension=1):
-    """
-    Extract metadata from a Swift UVOT observation.
-    """
+    return fits.open(path, memmap=False)
+
+
+def get_observation_metadata(hdul: fits.HDUList, extension: int = 1) -> dict:
+    """Extract the metadata for a particular UVOT image extension."""
 
     header = hdul[extension].header
-
     ra = header.get("RA_PNT")
     dec = header.get("DEC_PNT")
-
-    skycoord = SkyCoord(
-        ra=ra * u.deg,
-        dec=dec * u.deg,
-        frame="icrs",
-    )
+    if ra is None or dec is None:
+        raise ValueError(
+            f"HDU {extension} is missing RA_PNT or DEC_PNT metadata"
+        )
 
     return {
-        "obs_id": header.get("OBS_ID"),
-        "filter": header.get("FILTER"),
+        "obs_id": str(header.get("OBS_ID")).strip(),
+        "filter": str(header.get("FILTER")).strip(),
         "exposure": header.get("EXPOSURE"),
         "ra": ra,
         "dec": dec,
-        "skycoord": skycoord,
+        "skycoord": SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs"),
     }
 
 
+def find_image_extension(hdul: fits.HDUList, extension_name: str) -> int:
+    """Return the image HDU whose FITS ``EXTNAME`` matches *extension_name*."""
 
-def select_longest_extension(hdul):
-    """
-    Return the extension with the longest exposure.
-    """
+    expected = str(extension_name).strip()
+    for index, hdu in enumerate(hdul):
+        actual = str(hdu.header.get("EXTNAME", "")).strip()
+        if hdu.header.get("XTENSION") == "IMAGE" and actual == expected:
+            return index
 
-    longest = 1
-    max_exposure = hdul[1].header["EXPOSURE"]
-
-    for i in range(2, len(hdul)):
-        exposure = hdul[i].header["EXPOSURE"]
-
-        if exposure > max_exposure:
-            max_exposure = exposure
-            longest = i
-
-    return longest
+    available = [
+        str(hdu.header.get("EXTNAME", "")).strip()
+        for hdu in hdul
+        if hdu.header.get("XTENSION") == "IMAGE"
+    ]
+    raise KeyError(
+        f"Image extension {expected!r} was not found; available EXTNAME values: "
+        f"{', '.join(available) or '(none)'}"
+    )
 
 
+def select_longest_extension(hdul: fits.HDUList) -> int:
+    """Return the image extension with the greatest positive exposure."""
+
+    candidates = [
+        (index, hdu.header.get("EXPOSURE", 0))
+        for index, hdu in enumerate(hdul)
+        if hdu.header.get("XTENSION") == "IMAGE"
+    ]
+    if not candidates:
+        raise ValueError("FITS file contains no image extensions")
+    return max(candidates, key=lambda candidate: candidate[1])[0]
