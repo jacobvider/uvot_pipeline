@@ -5,191 +5,121 @@
 Date:   Wed Aug 26 2026
 """
 
+"""Run reference selection, subtraction, and source detection for one UVOT HDU."""
+
 from pathlib import Path
 
-print("In processing.py: import archive.py")
-# Search the Swift archive for ref image.
+from detection import detect_sources
+from registration import crop_bound, crop_images, find_overlap
+from subtraction import subtract_images
 from uvot_io.archive import (
-    find_reference_image,
-    # Download ref image from HEASARC.
-    download_reference_image,
     MAX_TARGETS,
     count_targets,
+    download_reference_image,
+    find_reference_image,
     has_acceptable_target_count,
 )
-
-print("In processing.py: import fits.py functions, load_observation, get_observation_metadata, and select_longest_extension")
-
 from uvot_io.fits import (
-
-    # Open a FITS observation.
-    load_observation,
-
-    # gets ra, dec, obs_id, filter, exptime
+    find_image_extension,
     get_observation_metadata,
-
-    # select img extension with the longest exposure time? (not sure how else to pick?)
+    load_observation,
     select_longest_extension,
 )
-
-from registration import (
-
-    # finds overlapping sky region
-    # shared by the observation and reference.
-    find_overlap,
-
-    # convert the overlap into pixel boundaries.
-    crop_bound,
-
-    # crop both images so they contain exactly the same sky region.
-    crop_images,
-)
-
-
-from subtraction import subtract_images
-
-# subtract_images()
-# Creates temporary FITS files (ObsCrop.fits, RefCrop.fits)
-# Runs HEASoft uvotimsum
-# returns imsum_crop.fits (difference image)
-
-from detection import detect_sources
-
-# Runs HEASoft uvotdetect on the difference image
-# to locate candidate transient sources.
-
 from validation import validate_transients
 
-# Verify the candidate catalog produced by the local detection step.
 
-print("In processing.py: import process")
-def process(observation_path, obsid):
+def process(
+    observation_path: str | Path,
+    obsid: int | str | None = None,
+    *,
+    obs_extension_name: str | None = None,
+    output_dir: str | Path | None = None,
+    reference_dir: str | Path | None = None,
+):
+    """Process one specified UVOT image extension.
+
+    ``obs_extension_name`` is a FITS ``EXTNAME`` such as ``uu791525963I``.
+    When it is omitted, the legacy first image extension (HDU 1) is used.
     """
-    Process a single Swift UVOT observation.
-    """
 
-    obs_hdul = load_observation(observation_path)
-
-    # reads metadata from the observation (RA, Dec, ObsID, Filter, Exposure time)
-    metadata = get_observation_metadata(obs_hdul)
-    filter_name = str(metadata["filter"]).strip()
-    output_dir = Path("data") / "processed" / (
-        f"{obsid}_{filter_name}"
-    )
-
-    # If this observation has already produced too many candidates, do not
-    # select and download another reference image for it.  New observations
-    # have no catalog yet and continue through the pipeline normally.
-    catalog_path = output_dir / "uvotDetect.fits"
-    existing_target_count = count_targets(catalog_path)
-    if not has_acceptable_target_count(catalog_path):
-        print(
-            f"Skipping ObsID {metadata['obs_id']}: its existing detection "
-            f"catalog contains {existing_target_count} targets, exceeding "
-            f"the limit of {MAX_TARGETS}."
+    observation_path = Path(observation_path)
+    with load_observation(observation_path) as obs_hdul:
+        obs_extension = (
+            find_image_extension(obs_hdul, obs_extension_name)
+            if obs_extension_name is not None
+            else 1
         )
-        return []
+        metadata = get_observation_metadata(obs_hdul, obs_extension)
 
-    # Search the Swift archive for nearby observations.
-    #
-    # Filters candidates by same filter, different ObsID, exposure > 60 s
+        if output_dir is None:
+            output_dir = Path("data") / "processed" / (
+                f"{metadata['obs_id']}_{metadata['filter']}_{obs_extension_name or obs_extension}"
+            )
+        output_dir = Path(output_dir)
 
-    # Returns the longest exposure image.
-    print("In processing.py, from archive.py: run find_reference_image")
-    best = find_reference_image(metadata)
-    print(best)
-    print("In processing.py: Returned from find_reference_image()")
+        catalog_path = output_dir / "uvotDetect.fits"
+        existing_target_count = count_targets(catalog_path)
+        if not has_acceptable_target_count(catalog_path):
+            print(
+                f"Skipping ObsID {metadata['obs_id']} EXTNAME "
+                f"{obs_extension_name or obs_extension}: its existing detection "
+                f"catalog contains {existing_target_count} targets, exceeding "
+                f"the limit of {MAX_TARGETS}."
+            )
+            return []
 
-    print("Selected reference:")
-    print(best["OBSID"])
-    print(best["FILTER"])
-    print(best["START_TIME"])
+        best_reference = find_reference_image(metadata)
+        reference_path = download_reference_image(
+            best_reference, directory=reference_dir
+        )
 
-    # Download the selected archival reference image.
-    reference_path = download_reference_image(best)
+        with load_observation(reference_path) as ref_hdul:
+            ref_extension = select_longest_extension(ref_hdul)
+            sk_min, sk_max, obs_header, ref_header = find_overlap(
+                obs_hdul,
+                obs_extension,
+                ref_hdul,
+                ref_extension,
+            )
+            x_lim_obs, y_lim_obs, x_lim_ref, y_lim_ref = crop_bound(
+                sk_min,
+                sk_max,
+                obs_header,
+                ref_header,
+            )
+            obs_crop, ref_crop = crop_images(
+                obs_hdul,
+                obs_extension,
+                ref_hdul,
+                ref_extension,
+                x_lim_obs,
+                y_lim_obs,
+                x_lim_ref,
+                y_lim_ref,
+            )
+            difference_image = subtract_images(
+                obs_crop,
+                obs_header,
+                metadata["exposure"],
+                ref_crop,
+                ref_header,
+                ref_hdul[ref_extension].header["EXPOSURE"],
+                output_dir,
+                metadata["obs_id"],
+                obs_extension,
+            )
 
-    # Open the reference FITS file.
-    ref_hdul = load_observation(reference_path)
-
-    # Select image extensions.
-    # Observation currently assumes extension 1.
-    # Reference uses the extension with the
-    # longest exposure.
-    obs_extension = 1
-    ref_extension = select_longest_extension(ref_hdul)
-
-    ##is it extension 1?
-    
-    # Determine the region of sky visible in both images (wcs)
-    sk_min, sk_max, obs_header, ref_header = find_overlap(
-        obs_hdul,
-        obs_extension,
-        ref_hdul,
-        ref_extension,
+    catalog, _region = detect_sources(
+        difference_image, output_dir=output_dir, threshold=5
     )
-
-    # Convert the overlapping sky region into pixel limits for each image.
-    xLimObs, yLimObs, xLimRef, yLimRef = crop_bound(
-        sk_min,
-        sk_max,
-        obs_header,
-        ref_header,
-    )
-
-    # Crop both images so they contain exactly the same region of sky.
-    obs_crop, ref_crop = crop_images(
-        obs_hdul,
-        obs_extension,
-        ref_hdul,
-        ref_extension,
-        xLimObs,
-        yLimObs,
-        xLimRef,
-        yLimRef,
-    )
-
-    # image subtraction.
-    # 1. Writes ObsCrop.fits
-    # 2. Writes RefCrop.fits
-    # 3. Computes exposure weights
-    # 4. Runs uvotimsum
-    # 5. Produces imsum_crop.fits
-    print("Subtracting images...")
-
-    difference_image = subtract_images(
-        obs_crop,
-        obs_header,
-        metadata["exposure"],
-        ref_crop,
-        ref_header,
-        ref_hdul[ref_extension].header["EXPOSURE"],
-        output_dir,
-        metadata["obs_id"],
-        obs_extension,
-    )
-    print("Finished subtraction.")
-
-    # Run uvotdetect on the difference image (uvotDetect.fits, uvotDetect.reg) containing every detected source.
-    print("Running uvotdetect...")
-
-    catalog, region = detect_sources(
-        difference_image,
-        output_dir=output_dir,
-        threshold=5,
-    )
-
     if catalog is None:
         print(
-            f"Skipping ObsID {metadata['obs_id']} because "
-            "uvotdetect did not produce an output catalog."
+            f"Skipping ObsID {metadata['obs_id']} because uvotdetect did not "
+            "produce an output catalog."
         )
         return []
-    print("Finished uvotdetect.")
 
-    print("Validating detection catalog...")
     validated = validate_transients(catalog)
-    print("Finished validation.")
-
     target_count = count_targets(validated)
     if not has_acceptable_target_count(validated):
         print(
@@ -197,7 +127,5 @@ def process(observation_path, obsid):
             f"targets, exceeding the limit of {MAX_TARGETS}."
         )
         return []
-
-    print("Registration complete.")
 
     return validated
