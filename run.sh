@@ -2,20 +2,32 @@
 ### @author: Jacob Vider, jacobisaacvider@gmail.com
 ### Date:   Wed Aug 26 2026
 ### Usage: ./run.sh target_observed filter output_filename.jpg
+### Batch: ./run.sh batch --manifest /path/to_process.log --archive /path/part-001.zip [...]
 ### Example: ./run.sh 30010013 UVW1 uvot_30010013_UVW1.jpg
 
-set -e
-#check if conda is installed
-source "$(conda info --base)/etc/profile.d/conda.sh"
-conda activate uvot
 
-#check if ds9 is installed
-command -v ds9 >/dev/null || {
-    echo "DS9 is not installed or not in PATH."
-    exit 1
-}
+# #check if conda is installed
+# source "$(conda info --base)/etc/profile.d/conda.sh"
+# conda activate uvot
+
+# #check if ds9 is installed
+# command -v ds9 >/dev/null || {
+#     echo "DS9 is not installed or not in PATH."
+#     exit 1
+# }
 
 #stops the script when a command fails
+set -e
+
+# Batch mode processes every filename|version|EXTNAME entry and deliberately
+# skips DS9: opening a window for each of hundreds of entries is not useful.
+if [ "$1" = "batch" ]; then
+    shift
+    PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+    cd "$PROJECT_DIR"
+    exec python -u main.py batch "$@"
+fi
+
 #user inputs the target
 TARGET="$1"
 #user can input the filter. if input is not specified, the filter will be UVW1
@@ -29,6 +41,7 @@ DATA_DIR="$PROJECT_DIR/data/processed/${TARGET}_${FILTER}"
 echo $PROJECT_DIR
 echo $DATA_DIR
 cd "$PROJECT_DIR"
+##if folder already exists - does it create a new one?
 
 #run main.py, with an input target and filter
 echo "Run main.py <target> <filter> outputs to main.log"
@@ -56,3 +69,6 @@ env -u LD_LIBRARY_PATH ds9 \
     -region load all "$validsrc_file" \
     -tile mode column \
     -saveimage jpeg "$output_img_name"
+
+
+    #sw00014012162uuu_sk.img.gz|003|uu791523077I
