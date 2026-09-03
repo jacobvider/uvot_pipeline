@@ -2,7 +2,8 @@
 ### @author: Jacob Vider, jacobisaacvider@gmail.com
 ### Date:   Wed Aug 26 2026
 ### Usage: ./run.sh target_observed filter output_filename.jpg
-### Batch: ./run.sh batch --manifest /path/to_process.log --archive /path/part-001.zip [...]
+### Default batch: ./run.sh batch
+### Custom batch: ./run.sh batch --manifest /path/to_process.log --source-dir /path/to/files
 ### Example: ./run.sh 30010013 UVW1 uvot_30010013_UVW1.jpg
 
 
@@ -19,12 +20,63 @@
 #stops the script when a command fails
 set -e
 
+PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+UVOT_ENVIRONMENT="uvot"
+DEFAULT_HEADAS="/mnt/c/Users/jacob/heasoft-6.36/x86_64-pc-linux-gnu-libc2.39"
+
+activate_uvot_environment() {
+    if ! command -v conda >/dev/null 2>&1; then
+        if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+            source "$HOME/miniconda3/etc/profile.d/conda.sh"
+        else
+            echo "Conda was not found. Start WSL with Miniconda available first." >&2
+            exit 1
+        fi
+    fi
+
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    if ! conda env list | awk '{print $1}' | sed 's/^\*//' | grep -qx "$UVOT_ENVIRONMENT"; then
+        echo "Conda environment '$UVOT_ENVIRONMENT' does not exist." >&2
+        echo "Create it once with:" >&2
+        echo "  cd $PROJECT_DIR && conda env create -f environment.yml" >&2
+        exit 1
+    fi
+    conda activate "$UVOT_ENVIRONMENT"
+}
+
+initialize_heasoft() {
+    HEADAS="${HEADAS:-$DEFAULT_HEADAS}"
+    if [ ! -f "$HEADAS/headas-init.sh" ] && [ -f "$DEFAULT_HEADAS/headas-init.sh" ]; then
+        echo "Ignoring invalid HEADAS override: $HEADAS" >&2
+        HEADAS="$DEFAULT_HEADAS"
+    fi
+    if [ ! -f "$HEADAS/headas-init.sh" ]; then
+        echo "HEASoft initialization script was not found at: $HEADAS/headas-init.sh" >&2
+        echo "Set HEADAS to your HEASoft installation and retry." >&2
+        exit 1
+    fi
+    export HEADAS
+    source "$HEADAS/headas-init.sh"
+}
+
+activate_uvot_environment
+initialize_heasoft
+
 # Batch mode processes every filename|version|EXTNAME entry and deliberately
 # skips DS9: opening a window for each of hundreds of entries is not useful.
 if [ "$1" = "batch" ]; then
     shift
-    PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
     cd "$PROJECT_DIR"
+
+    # With no extra arguments, process the files currently supplied to Codex.
+    # Supply explicit arguments after ``batch`` to override these defaults.
+    if [ "$#" -eq 0 ]; then
+        set -- \
+            --manifest /mnt/c/Users/jacob/Downloads/to_process.log \
+            --source-dir /mnt/c/Users/jacob/AppData/Local/Temp \
+            --allow-missing
+    fi
+
     exec python -u main.py batch "$@"
 fi
 
@@ -36,7 +88,6 @@ FILTER="${2:-UVW1}"
 OUTPUT_IMG_NAME="${3:-data/processed/uvot_${TARGET}_${FILTER}.jpg}"
 
 # find folder containing this code, and move to folder
-PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="$PROJECT_DIR/data/processed/${TARGET}_${FILTER}"
 echo $PROJECT_DIR
 echo $DATA_DIR
