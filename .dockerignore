@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/
+*.fits
+*.fit
+*.img
+*.img.gz
+*.zip
+*.log
+.env
+.venv/

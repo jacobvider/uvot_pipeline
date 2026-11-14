@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Command-line entry points for the UVOT subtraction pipeline.
+
 @author: Jacob Vider, jacobisaacvider@gmail.com
-Date:   Wed Aug 26 2026
+Date: Wed Aug 26 2026
 """
-"""Command-line entry points for the UVOT subtraction pipeline."""
 
 from __future__ import annotations
 
@@ -15,7 +16,6 @@ import sys
 from processing import process
 from uvot_io.archive import get_obs_path
 from uvot_io.batch import extract_input, index_inputs, missing_filenames, parse_manifest
-
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATA_DIR = PROJECT_DIR / "data"
