@@ -38,19 +38,11 @@ def prepare_weights(obs_exposure, ref_exposure):
 
 
 def write_weight_file(
-    obs_filename,
-    ref_filename,
-    obs_weight,
-    ref_weight,
-    output_file,
+    obs_filename, ref_filename, obs_weight, ref_weight, output_file
 ):
-    """
-    Write the uvotimsum weight file.
-    """
-
     with open(output_file, "w") as f:
-        f.write(f"{obs_filename}:{obs_weight}\n")
-        f.write(f"{ref_filename}:{ref_weight}\n")
+        f.write(f"{obs_filename.upper()}:{obs_weight}\n")
+        f.write(f"{ref_filename.upper()}:{ref_weight}\n")
 
     return output_file
 

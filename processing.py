@@ -9,8 +9,8 @@ Date:   Wed Aug 26 2026
 
 from pathlib import Path
 
-from detection import detect_sources
-from registration import crop_bound, crop_images, find_overlap
+from detection import detect_sources, create_masked_difference_image
+from registration import crop_bound, crop_images, find_overlap, create_overlap_mask
 from subtraction import subtract_images
 from uvot_io.archive import (
     MAX_TARGETS,
@@ -57,16 +57,16 @@ def process(
             )
         output_dir = Path(output_dir)
 
-        catalog_path = output_dir / "uvotDetect.fits"
-        existing_target_count = count_targets(catalog_path)
-        if not has_acceptable_target_count(catalog_path):
-            print(
-                f"Skipping ObsID {metadata['obs_id']} EXTNAME "
-                f"{obs_extension_name or obs_extension}: its existing detection "
-                f"catalog contains {existing_target_count} targets, exceeding "
-                f"the limit of {MAX_TARGETS}."
-            )
-            return []
+        # catalog_path = output_dir / "uvotDetect.fits"
+        # existing_target_count = count_targets(catalog_path)
+        # if not has_acceptable_target_count(catalog_path):
+        #     print(
+        #         f"Skipping ObsID {metadata['obs_id']} EXTNAME "
+        #         f"{obs_extension_name or obs_extension}: its existing detection "
+        #         f"catalog contains {existing_target_count} targets, exceeding "
+        #         f"the limit of {MAX_TARGETS}."
+        #     )
+        #     return []
 
         best_reference = find_reference_image(metadata)
         reference_path = download_reference_image(
@@ -108,9 +108,25 @@ def process(
                 metadata["obs_id"],
                 obs_extension,
             )
+            overlap_mask = create_overlap_mask(
+                output_dir / "ObsCrop.fits",
+                output_dir / "RefCrop.fits",
+                difference_image,
+            )
+
+            print("Overlapping pixels:", overlap_mask.sum())
+            print("Overlap fraction:", overlap_mask.mean())
+
+            masked_difference_image = create_masked_difference_image(
+                difference_image,
+                overlap_mask,
+                output_dir,
+            )
 
     catalog, _region = detect_sources(
-        difference_image, output_dir=output_dir, threshold=5
+        masked_difference_image,
+        output_dir=output_dir,
+        threshold=5,
     )
     if catalog is None:
         print(

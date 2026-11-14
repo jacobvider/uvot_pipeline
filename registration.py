@@ -1,7 +1,12 @@
+
+from pathlib import Path
+
 import numpy as np
+from astropy.io import fits
+from astropy.wcs import WCS
 from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
 from astropy.coordinates import SkyCoord
-from astropy.wcs import WCS
+from scipy.ndimage import map_coordinates
 
 
 def find_overlap(obs_hdul, obs_extension, ref_hdul, ref_extension):
@@ -111,14 +116,17 @@ def crop_bound(sk_min, sk_max,
 
     return x_lim_obs, y_lim_obs, x_lim_ref, y_lim_ref
 
+
 def crop_image(image, x_limits, y_limits):
     """
-    Crop an image
+    Crop an image.
     """
+
     return image[
         y_limits[0]:y_limits[1],
         x_limits[0]:x_limits[1],
     ]
+
 
 def crop_images(
     obs_hdul,
@@ -147,3 +155,126 @@ def crop_images(
     )
 
     return obs_crop, ref_crop
+
+
+# -------------------------------------------------
+# Pixel-level overlap mask
+# -------------------------------------------------
+
+def create_overlap_mask(
+    observation_file,
+    reference_file,
+    difference_file,
+):
+    """
+    Construct a Boolean overlap mask on the difference-image grid.
+
+    Parameters
+    ----------
+    observation_file : str or Path
+        Cropped observation FITS file (ObsCrop.fits).
+
+    reference_file : str or Path
+        Cropped reference FITS file (RefCrop.fits).
+
+    difference_file : str or Path
+        Subtraction FITS file (imsum_crop.fits).
+
+    Returns
+    -------
+    numpy.ndarray
+        Boolean mask with the same shape as the difference image.
+
+        True: Both input images have finite data coverage.
+        False: At least one image lacks valid coverage.
+
+    Notes
+    -----
+    Zero-valued pixels are considered valid.
+
+    This is a WCS-based approximation of common coverage.
+    It does not use exposure maps or model fractional pixel coverage.
+    """
+
+    def load_image(path):
+        path = Path(path)
+
+        with fits.open(path) as hdul:
+            for hdu in hdul:
+                if (
+                    hdu.data is not None
+                    and hdu.data.ndim == 2
+                ):
+                    data = np.asarray(hdu.data, dtype=float)
+                    wcs = WCS(hdu.header).celestial
+                    return data, wcs
+
+        raise ValueError(
+            f"No 2D image extension found in {path}"
+        )
+
+    obs, obs_wcs = load_image(observation_file)
+    ref, ref_wcs = load_image(reference_file)
+    diff, diff_wcs = load_image(difference_file)
+
+    # Pixel coordinates of the difference-image grid.
+    y, x = np.indices(diff.shape)
+
+    # Convert difference-image pixels to sky coordinates.
+    ra, dec = diff_wcs.pixel_to_world_values(x, y)
+
+    # Project sky coordinates into both input images.
+    obs_x, obs_y = obs_wcs.world_to_pixel_values(ra, dec)
+    ref_x, ref_y = ref_wcs.world_to_pixel_values(ra, dec)
+
+    def project_valid_coverage(data, px, py):
+        """
+        Project an input image's finite-data footprint
+        onto the difference-image grid.
+        """
+
+        height, width = data.shape
+
+        # Require coordinates inside the input image.
+        inside = (
+            np.isfinite(px)
+            & np.isfinite(py)
+            & (px >= 0)
+            & (py >= 0)
+            & (px <= width - 1)
+            & (py <= height - 1)
+        )
+
+        # Replace invalid coordinates before sampling.
+        safe_x = np.where(inside, px, -1)
+        safe_y = np.where(inside, py, -1)
+
+        # Zero is valid; only NaN/Inf are excluded.
+        finite_mask = np.isfinite(data)
+
+        sampled = map_coordinates(
+            finite_mask.astype(np.uint8),
+            [safe_y, safe_x],
+            order=0,
+            mode="constant",
+            cval=0,
+            prefilter=False,
+        )
+
+        return inside & (sampled > 0)
+
+    obs_on_diff = project_valid_coverage(
+        obs, obs_x, obs_y
+    )
+
+    ref_on_diff = project_valid_coverage(
+        ref, ref_x, ref_y
+    )
+
+    # Both images must cover the output pixel.
+    overlap = obs_on_diff & ref_on_diff
+
+    # Exclude nonfinite output pixels as well.
+    overlap &= np.isfinite(diff)
+
+    return overlap

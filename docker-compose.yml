@@ -1,0 +1,7 @@
+services:
+  uvot:
+    image: uvot-pipeline
+    volumes:
+      - ${HEASoft_HOST}:/opt/heasoft:ro
+      - ${CALDB_HOST}:/caldb:ro
+      - ${DATA_DIR}:/app/data

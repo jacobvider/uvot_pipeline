@@ -12,6 +12,49 @@ from astropy.table import Table
 import heasoftpy as hsp
 
 
+import numpy as np
+from astropy.io import fits
+
+
+def create_masked_difference_image(
+    difference_image,
+    overlap_mask,
+    output_dir,
+):
+    """
+    Save a masked copy of the subtraction image.
+
+    Pixels outside the common observation/reference
+    footprint are marked as NaN.
+
+    The original subtraction image is not modified.
+    """
+    difference_image = Path(difference_image)
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    masked_path = output_dir / "imsum_masked.fits"
+
+    with fits.open(difference_image) as hdul:
+        image_hdu = hdul[1]
+        image = np.asarray(image_hdu.data, dtype=float)
+
+        if image.shape != overlap_mask.shape:
+            raise ValueError(
+                "Overlap mask and difference image "
+                "have different dimensions."
+            )
+
+        masked_image = image.copy()
+        masked_image[~overlap_mask] = np.nan
+
+        image_hdu.data = masked_image
+
+        hdul.writeto(masked_path, overwrite=True)
+
+    return masked_path
+
+
 def detect_sources(
     difference_image: str | Path,
     *,
